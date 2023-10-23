@@ -11,7 +11,12 @@ from metaflow import (
 from metaflow.cards import Table, Markdown, Artifact
 
 # TODO move your labeling function from earlier in the notebook here
-labeling_function = lambda row: 0
+
+def labeling_function(row):
+    if row['rating'] >= 4:
+        return 1
+    else:
+        return 0
 
 
 class BaselineNLPFlow(FlowSpec):
@@ -54,15 +59,20 @@ class BaselineNLPFlow(FlowSpec):
         print(f"num of rows in train set: {self.traindf.shape[0]}")
         print(f"num of rows in validation set: {self.valdf.shape[0]}")
 
+
         self.next(self.baseline)
 
+    
     @step
     def baseline(self):
         "Compute the baseline"
+        import pandas as pd
+        from sklearn.metrics import roc_auc_score, accuracy_score
 
         ### TODO: Fit and score a baseline model on the data, log the acc and rocauc as artifacts.
-        self.base_acc = 0.0
-        self.base_rocauc = 0.0
+        self.valdf['model_1'] = 0
+        self.base_acc = accuracy_score(self.valdf['label'],self.valdf['model_1'])
+        self.base_rocauc = roc_auc_score(self.valdf['label'],self.valdf['model_1'])
 
         self.next(self.end)
 
@@ -80,13 +90,18 @@ class BaselineNLPFlow(FlowSpec):
 
         current.card.append(Markdown("## Examples of False Positives"))
         # TODO: compute the false positive predictions where the baseline is 1 and the valdf label is 0.
+        false_positives = self.valdf[(self.valdf['model_1'] == 1) & (self.valdf['label'] == 0)]
         # TODO: display the false_positives dataframe using metaflow.cards
         # Documentation: https://docs.metaflow.org/api/cards#table
+        false_positives_table = Table.from_dataframe(false_positives)
+        current.card.append(false_positives_table)
 
         current.card.append(Markdown("## Examples of False Negatives"))
         # TODO: compute the false positive predictions where the baseline is 0 and the valdf label is 1.
+        false_negatives = self.valdf[(self.valdf['model_1'] == 0) & (self.valdf['label'] == 1)]
         # TODO: display the false_negatives dataframe using metaflow.cards
-
+        false_negatives_table = Table.from_dataframe(false_negatives)
+        current.card.append(false_negatives_table)
 
 if __name__ == "__main__":
     BaselineNLPFlow()
